@@ -44,23 +44,12 @@ module SpikeSeqProcessor
     
     
     function Extract_SubPopulation( SpikeTime::Vector, SpikeNeuron::Vector, sub_population::Vector )
-        # rename neuron number here
-        # i to new_name
-        Rename_list = zeros(length(sub_population))
-        new_name = 1
-        for i=1:length(sub_population)
-            if sub_population[i] == 1
-                Rename_list[i] = new_name
-                new_name += 1
-            end
-        end
-
         SpikeTime_SubPop = []
         SpikeNeuron_SubPop = []
         for i=1:length(SpikeTime)
-            if sub_population[SpikeNeuron[i]] == 1
+            if sub_population[SpikeNeuron[i]] != 0
                 push!(SpikeTime_SubPop, SpikeTime[i])
-                push!(SpikeNeuron_SubPop, Rename_list[SpikeNeuron[i]])
+                push!(SpikeNeuron_SubPop, sub_population[SpikeNeuron[i]])
             end
         end
         return SpikeTime_SubPop, SpikeNeuron_SubPop
