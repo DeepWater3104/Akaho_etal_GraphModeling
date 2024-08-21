@@ -1,24 +1,29 @@
 module SpikeSeqProcessor
     function EnumerateSpikedNeuron( t1, t2, SpikeTime::Vector, SpikeNeuron::Vector, N )
-        i=1
-        spike_binary = zeros( UInt32, N)
+        spike_binary = zeros(N)
+        # spike_binary is not updated in the below 
+        # don't know reasons why
         for i=1:length(SpikeTime)
-            if t1 <= SpikeTime[i] && SpikeTime[i] <= t2
-                spike_binary[UInt(SpikeNeuron[i])] == 1
+            if t1 <= SpikeTime[i] && SpikeTime[i] < t2
+                spike_binary[Int(SpikeNeuron[i])] = 1
+                #println(Int(SpikeNeuron[i]))
             end
         end
+        #println(spike_binary)
         return spike_binary
     end
     
     function EstimateX( SpikeTime::Vector, SpikeNeuron::Vector, ϵ1, ϵ2, T, N )
         num_bin = UInt32(floor((T-ϵ2)/ϵ1))
-        numEvent_Yi1_Yj1 = zeros( UInt32, N, N)
-        numEvent_Yi0_Yj1 = zeros( UInt32, N, N)
-        numEvent_Yi1_Yj0 = zeros( UInt32, N, N)
-        numEvent_Yi0_Yj0 = zeros( UInt32, N, N)
+        numEvent_Yi1_Yj1 = zeros(N, N)
+        numEvent_Yi0_Yj1 = zeros(N, N)
+        numEvent_Yi1_Yj0 = zeros(N, N)
+        numEvent_Yi0_Yj0 = zeros(N, N)
         for bin=1:num_bin
             spike_binary1 = EnumerateSpikedNeuron( ϵ1*(bin-1), ϵ1*bin   , SpikeTime, SpikeNeuron, N )
             spike_binary2 = EnumerateSpikedNeuron( ϵ1*bin    , ϵ1*bin+ϵ2, SpikeTime, SpikeNeuron, N )
+            #println(spike_binary1)
+            #println(spike_binary2)
             for i=1:N
                 for j=1:N
                     if     spike_binary1[j] == 1 && spike_binary2[i] == 1
@@ -39,6 +44,13 @@ module SpikeSeqProcessor
         for i=1:N
             X[i, i] = 0.
         end
+        #println(num_bin)
+        #println(size(numEvent_Yi1_Yj1))
+        #println(numEvent_Yi1_Yj1)
+        #println(numEvent_Yi0_Yj1)
+        #println(numEvent_Yi1_Yj0)
+        #println(numEvent_Yi0_Yj0)
+
         return X
     end
     

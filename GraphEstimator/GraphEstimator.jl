@@ -38,10 +38,11 @@ function calc_Λ( α, X, D , M, N_recorded )
     end
 
     #reduce element following the condtion for sparsity 
-    Λ_sorted= sort(vec(Λ), by=abs)
+    Λ_sorted= sort(vec(Λ), by=abs, rev=true)
+    ζ= abs(Λ_sorted[M])
     for i=1:N_recorded
         for j=1:N_recorded
-            if abs(Λ[i, j]) < abs(Λ_sorted[M])
+            if abs(Λ[i, j]) < ζ
                 Λ[i, j] = 0.
             end
         end
@@ -58,11 +59,14 @@ function minimizeJ( X, r, M, num_iteration, N_recorded )
 
     for i=1:num_iteration
         Λ = calc_Λ( α, X, D , M, N_recorded)
-        #@printf("end Λ:%d\n", i)
+        @printf("end Λ:%d\n", i)
+        #println(Λ)
         α = calc_α( X , Λ, N_recorded )
-        #@printf("end α:%d\n", i)
+        @printf("end α:%d\n", i)
+        #println(α)
         D  = calc_D( α, Λ, N_recorded )
-        #@printf("end D:%d\n", i)
+        @printf("end D:%d\n", i)
+        #println(D)
     end
 
     return Λ
@@ -81,7 +85,7 @@ function StARS!( SpikeTime::Vector, SpikeNeuron::Vector, T, b, num_iteration, γ
     end
 
 
-    for M=50:N*(N-1) # この繰返し範囲は，速度向上のために絞れる可能性がある
+    for M=1:N_recorded*(N_recorded-1) # この繰返し範囲は，速度向上のために絞れる可能性がある
         ϕ_Mij = zeros(Float64, N_recorded, N_recorded)
         for k=1:K
             Λ = minimizeJ( X_kij[K, :, :], r, M, num_iteration, N_recorded )
@@ -97,6 +101,7 @@ function StARS!( SpikeTime::Vector, SpikeNeuron::Vector, T, b, num_iteration, γ
         # calculate probability and its variance
         ϕ_Mij = ϕ_Mij ./ K
         ξ_Mij = 2 * ϕ_Mij .* (1 .- ϕ_Mij)
+        println(ξ_Mij)
 
         # calculate average of instability values
         D_M = 0.
@@ -119,57 +124,63 @@ end
 
 
 
-function main()
-    # record timeseries
-    record_neuron = rand(N)
-    record_prob = 0.8
-    N_recorded = 0
-    for i=1:N
-        if record_neuron[i] <= 0.8
-            record_neuron[i] = 1
-            N_recorded += 1
-        else
-            record_neuron[i] = 0
-        end
+Random.seed!(1)
+# record timeseries
+record_neuron = rand(N)
+record_prob = 0.8
+N_recorded = 0
+for i=1:N
+    if record_neuron[i] <= 0.8
+        record_neuron[i] = 1
+        global N_recorded += 1
+    else
+        record_neuron[i] = 0
     end
-
-    # rename neuron number i to new_name
-    # not recorded neurons are represented as 0 in rename_list
-    rename_list = zeros(N)
-    new_name = 1
-    for i=1:N
-        if record_neuron[i] == 1
-            push!(rename_list, new_name)
-            rename_list[i] = new_name
-            new_name += 1
-        end
-    end
-    println(record_neuron)
-    println(rename_list)
-
-
-    SpikeTime_SubPopulation, SpikeNeuron_SubPopulation = SpikeSeqProcessor.Extract_SubPopulation( SpikeTime, SpikeNeuron, rename_list )
-
-    ## hyper parameters
-    Random.seed!(1)
-    ϵ1 = 3.0 #msec
-    ϵ2 = 3.0 #msec
-    r = 1.0
-    K = 100
-    γ= 0.2
-    b = 10000
-    num_iteration = 5
-    println("StARS started")
-    M = StARS!( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, T, b, num_iteration, γ, K, N_recorded, ϵ1, ϵ2, r)
-    println("StARS ended")
-
-    # optimization
-    #X = SpikeSeqProcessor.EstimateX( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
-    #println("Optimization started")
-    #Λ = minimizeJ( X, r, num_iteration )
-    #println("Optimization ended")
 end
 
-if contains( @__FILE__, PROGRAM_FILE )
-    @time main()
+# rename neuron number i to new_name
+# not recorded neurons are represented as 0 in rename_list
+rename_list = zeros(N)
+new_name = 1
+for i=1:N
+    if record_neuron[i] == 1
+        push!(rename_list, new_name)
+        rename_list[i] = new_name
+        global new_name += 1
+    end
 end
+println(record_neuron)
+println(rename_list)
+
+
+SpikeTime_SubPopulation, SpikeNeuron_SubPopulation = SpikeSeqProcessor.Extract_SubPopulation( SpikeTime, SpikeNeuron, rename_list )
+
+## hyper parameters
+ϵ1 = 3.0 #msec
+ϵ2 = 3.0 #msec
+r = 0.3
+K = 100
+γ= 0.2
+b = 3000
+num_iteration = 5
+println("StARS started")
+M = StARS!( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, T, b, num_iteration, γ, K, N_recorded, ϵ1, ϵ2, r)
+println("StARS ended")
+
+# optimization
+X = SpikeSeqProcessor.EstimateX( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
+println("Optimization started")
+Λ = minimizeJ( X, r, M, num_iteration, N_recorded )
+println("Optimization ended")
+Λ_ans = zeros(N_recorded, N_recorded)
+for i=1:N
+    for j=1:N
+        if rename_list[i] != 0 && rename_list[j] != 0
+            Λ_ans[Int(rename_list[i]), Int(rename_list[j])] = W[i, j]
+        end
+    end
+end
+
+p1 = plot(Λ, clim=(-1,1))
+p2 = plot(Λ_ans, clim=(-1,1))
+plot(p1, p2, layout=(2,1))
