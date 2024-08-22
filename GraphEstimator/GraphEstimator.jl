@@ -157,17 +157,19 @@ SpikeTime_SubPopulation, SpikeNeuron_SubPopulation = SpikeSeqProcessor.Extract_S
 
 ## hyper parameters
 ϵ1 = 3.0 #msec
-ϵ2 = 3.0 #msec
+#ϵ2 = 3.0 #msec
+ϵ2 = 5.0 #msec
 r = 0.3
 K = 100
 γ= 0.2
 b = 3000
 num_iteration = 5
-println("StARS started")
-M = StARS!( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, T, b, num_iteration, γ, K, N_recorded, ϵ1, ϵ2, r)
-println("StARS ended")
+#println("StARS started")
+#M = StARS!( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, T, b, num_iteration, γ, K, N_recorded, ϵ1, ϵ2, r)
+#println("StARS ended")
 
 # optimization
+M = 150
 X = SpikeSeqProcessor.EstimateX( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
 println("Optimization started")
 Λ = minimizeJ( X, r, M, num_iteration, N_recorded )
@@ -181,6 +183,7 @@ for i=1:N
     end
 end
 
-p1 = plot(Λ, clim=(-1,1))
-p2 = plot(Λ_ans, clim=(-1,1))
-plot(p1, p2, layout=(2,1))
+p1 = heatmap(Λ, clim=(-1,1), title="Estimation")
+p2 = heatmap(Λ_ans, clim=(-1,1), title="Ground Truth")
+plot(p2, p1, layout=(1,2))
+savefig("Weight_8ms.png")
