@@ -1,5 +1,7 @@
 using LinearAlgebra
 using Random
+using Printf
+
 include("SpikeSequence_Processor.jl")
 
 function calc_α( X, Λ, N_recorded)
@@ -50,6 +52,9 @@ function calc_Λ( α, X, D , M, N_recorded )
     return Λ
 end
 
+function calc_J(α, D, Λ, X)
+    return norm( X + D - α.* (inv(I(size(X,1))-Λ) - I(size(X,1))), 2)
+end
 
 function minimizeJ( X, r, M, num_iteration, N_recorded )
     # initial state
@@ -59,14 +64,9 @@ function minimizeJ( X, r, M, num_iteration, N_recorded )
 
     for i=1:num_iteration
         Λ = calc_Λ( α, X, D , M, N_recorded)
-        @printf("end Λ:%d\n", i)
-        #println(Λ)
         α = calc_α( X , Λ, N_recorded )
-        @printf("end α:%d\n", i)
-        #println(α)
         D  = calc_D( α, Λ, N_recorded )
-        @printf("end D:%d\n", i)
-        #println(D)
+        @printf("J:%f", calc_J(α, D, Λ, X) )
     end
 
     return Λ
