@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 module SpikeSeqProcessor
     function EnumerateSpikedNeuron( t1, t2, SpikeTime::Vector, SpikeNeuron::Vector, N )
         spike_binary = zeros(N)
@@ -13,7 +15,8 @@ module SpikeSeqProcessor
         return spike_binary
     end
     
-    function EstimateX( SpikeTime::Vector, SpikeNeuron::Vector, ϵ1, ϵ2, T, N )
+    function EstimateX_SlidingBin( SpikeTime::Vector, SpikeNeuron::Vector, ϵ1, ϵ2, T, N )
+        # ビンの決め方は考え直す必要があるかもしれない
         num_bin = UInt32(floor((T-ϵ2)/ϵ1))
         numEvent_Yi1_Yj1 = zeros(N, N)
         numEvent_Yi0_Yj1 = zeros(N, N)
@@ -44,16 +47,44 @@ module SpikeSeqProcessor
         for i=1:N
             X[i, i] = 0.
         end
-        #println(num_bin)
-        #println(size(numEvent_Yi1_Yj1))
-        #println(numEvent_Yi1_Yj1)
-        #println(numEvent_Yi0_Yj1)
-        #println(numEvent_Yi1_Yj0)
-        #println(numEvent_Yi0_Yj0)
 
         return X
     end
     
+    function EstimateX_RandomBin( SpikeTime::Vector, SpikeNeuron::Vector, ϵ1, ϵ2, T, N)
+        num_bin = UInt32(2*floor((T-ϵ2)/ϵ1))
+        start = (T-(ϵ1+ϵ2))*rand(num_bin)
+        numEvent_Yi1_Yj1 = zeros(N, N)
+        numEvent_Yi0_Yj1 = zeros(N, N)
+        numEvent_Yi1_Yj0 = zeros(N, N)
+        numEvent_Yi0_Yj0 = zeros(N, N)
+        for bin=1:num_bin
+            spike_binary1 = EnumerateSpikedNeuron( start[bin]   , start[bin]+ϵ1   , SpikeTime, SpikeNeuron, N )
+            spike_binary2 = EnumerateSpikedNeuron( start[bin]+ϵ1, start[bin]+ϵ1+ϵ2, SpikeTime, SpikeNeuron, N )
+            for i=1:N
+                for j=1:N
+                    if     spike_binary1[j] == 1 && spike_binary2[i] == 1
+                        numEvent_Yi1_Yj1[i, j] += 1
+                    elseif spike_binary1[j] == 0 && spike_binary2[i] == 1
+                        numEvent_Yi1_Yj0[i, j] += 1
+                    elseif spike_binary1[j] == 1 && spike_binary2[i] == 0
+                        numEvent_Yi0_Yj1[i, j] += 1
+                    elseif spike_binary1[j] == 0 && spike_binary2[i] == 0
+                        numEvent_Yi0_Yj0[i, j] += 1
+                    end
+                end
+            end
+        end
+        # 要素ごとの割り算
+        # DevideError を例外処理実装する
+        X = numEvent_Yi1_Yj1 ./ (numEvent_Yi1_Yj1 .+ numEvent_Yi1_Yj0) .- numEvent_Yi1_Yj0 ./ (numEvent_Yi1_Yj0 .+ numEvent_Yi0_Yj0)
+        for i=1:N
+            X[i, i] = 0.
+        end
+
+        return X
+
+    end
     
     function Extract_SubPopulation( SpikeTime::Vector, SpikeNeuron::Vector, sub_population::Vector )
         SpikeTime_SubPop = []

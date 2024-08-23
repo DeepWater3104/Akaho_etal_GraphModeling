@@ -5,6 +5,7 @@ using Printf
 include("SpikeSequence_Processor.jl")
 
 function calc_α( X, Λ, N_recorded)
+    # OK
     temp = inv( I(N_recorded)-Λ) - I(N_recorded)
     top = 0.
     bottom = 0.
@@ -21,23 +22,16 @@ end
 
 function calc_D( α, Λ, N_recorded )
     D = α.* ( inv(I(N_recorded)-Λ) - I(N_recorded))
+
     # take only diagonal elements
-    for i=1:N_recorded
-        for j=1:N_recorded
-            if i != j
-                D[i,j] = 0.
-            end
-        end
-    end
+    D = Diagonal(D)
     return D
 end
 
 
 function calc_Λ( α, X, D , M, N_recorded )
     Λ = (-1) .* inv(( 1/α).*(X + D) + I(N_recorded) )
-    for i=1:N_recorded
-        Λ[i, i] = 0.
-    end
+    Λ =  Λ- Diagonal(Λ)
 
     #reduce element following the condtion for sparsity 
     Λ_sorted= sort(vec(Λ), by=abs, rev=true)
@@ -66,7 +60,7 @@ function minimizeJ( X, r, M, num_iteration, N_recorded )
         Λ = calc_Λ( α, X, D , M, N_recorded)
         α = calc_α( X , Λ, N_recorded )
         D  = calc_D( α, Λ, N_recorded )
-        @printf("J:%f", calc_J(α, D, Λ, X) )
+        @printf("J:%f\n", calc_J(α, D, Λ, X) )
     end
 
     return Λ
@@ -149,8 +143,8 @@ for i=1:N
         global new_name += 1
     end
 end
-println(record_neuron)
-println(rename_list)
+#println(record_neuron)
+#println(rename_list)
 
 
 SpikeTime_SubPopulation, SpikeNeuron_SubPopulation = SpikeSeqProcessor.Extract_SubPopulation( SpikeTime, SpikeNeuron, rename_list )
@@ -158,19 +152,20 @@ SpikeTime_SubPopulation, SpikeNeuron_SubPopulation = SpikeSeqProcessor.Extract_S
 ## hyper parameters
 ϵ1 = 3.0 #msec
 #ϵ2 = 3.0 #msec
-ϵ2 = 5.0 #msec
+ϵ2 = 3.0 #msec
 r = 0.3
 K = 100
 γ= 0.2
 b = 3000
-num_iteration = 5
+num_iteration = 10
 #println("StARS started")
 #M = StARS!( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, T, b, num_iteration, γ, K, N_recorded, ϵ1, ϵ2, r)
 #println("StARS ended")
 
 # optimization
 M = 150
-X = SpikeSeqProcessor.EstimateX( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
+#X = SpikeSeqProcessor.EstimateX_SlidingBin( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
+X = SpikeSeqProcessor.EstimateX_RandomBin( SpikeTime_SubPopulation, SpikeNeuron_SubPopulation, ϵ1, ϵ2, T, N_recorded )
 println("Optimization started")
 Λ = minimizeJ( X, r, M, num_iteration, N_recorded )
 println("Optimization ended")
@@ -186,4 +181,4 @@ end
 p1 = heatmap(Λ, clim=(-1,1), title="Estimation")
 p2 = heatmap(Λ_ans, clim=(-1,1), title="Ground Truth")
 plot(p2, p1, layout=(1,2))
-savefig("Weight_8ms.png")
+savefig("Estimation.png")

@@ -36,9 +36,11 @@ for j=1:N_recorded
     end
 end
 
-# implement Kandel's τlater
 Sensitivity = TP / (TP + FN)
 FP_rate = FP / (FP + TN)
+
+heatmap(TrueOrFalse)
+savefig("TrueOrFalse.png")
 
 @printf("TP:%f TN:%f FP:%f FN:%f\n", TP, TN, FP, FN)
 @printf("Sensitivity:%f\n", Sensitivity)
