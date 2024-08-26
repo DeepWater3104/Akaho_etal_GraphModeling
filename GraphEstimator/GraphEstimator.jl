@@ -60,7 +60,7 @@ function minimizeJ( X, r, M, num_iteration, N_recorded )
         Λ = calc_Λ( α, X, D , M, N_recorded)
         α = calc_α( X , Λ, N_recorded )
         D  = calc_D( α, Λ, N_recorded )
-        @printf("J:%f\n", calc_J(α, D, Λ, X) )
+        @printf("α:%f J:%f\n", α, calc_J(α, D, Λ, X) )
     end
 
     return Λ
@@ -75,7 +75,7 @@ function StARS!( SpikeTime::Vector, SpikeNeuron::Vector, T, b, num_iteration, γ
     # generate X for each subsequence
     for k=1:K
             SpikeTime_SubSeq, SpikeNeuron_SubSeq = SpikeSeqProcessor.Extract_SubSequence( SpikeTime, SpikeNeuron, SubSeq_start[k], SubSeq_start[k]+b )
-            X_kij[k, :, :] = SpikeSeqProcessor.EstimateX( SpikeTime_SubSeq, SpikeNeuron_SubSeq, ϵ1, ϵ2, T, N_recorded)
+            X_kij[k, :, :] = SpikeSeqProcessor.EstimateX_RandomBin( SpikeTime_SubSeq, SpikeNeuron_SubSeq, ϵ1, ϵ2, T, N_recorded)
     end
 
 
